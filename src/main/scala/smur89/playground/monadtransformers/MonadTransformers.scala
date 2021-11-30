@@ -57,17 +57,17 @@ object MonadTransformers extends IOApp {
     IO(println(Console.RED + "PlainImpl For Comprehension")) *>
       (for { // Outer Monad is IO
         nameEither <- userService.getUser(1) // IO[Either[String, Option[User]]
-        // name <- nameOpt does not compose (IO cannot compose with Option)
+//         name <- nameEither // does not compose (IO cannot compose with Either)
         address <- // IO[Option[String]]
           nameEither match {
-            case Right(value) =>
-              value match {
-                case Some(value) =>
-                  IO(println(s"Name: $value")) *> addressService.getAddress(value)
-                case None        =>
+            case Right(userOpt) =>
+              userOpt match {
+                case Some(user) =>
+                  IO(println(s"Name: $user")) *> addressService.getAddress(user)
+                case None       =>
                   IO(None)
               }
-            case Left(_)      =>
+            case Left(_)        =>
               IO(None)
           }
         _ <- IO(println(s"Address: $address")) // IO[Unit]
@@ -77,7 +77,7 @@ object MonadTransformers extends IOApp {
   private val monadTransformerEitherImpl: IO[ExitCode] = {
     IO(println(Console.GREEN + "Monad Transformer EitherT")) *>
       (for { // Outer Monad is EitherT
-        nameOption <- EitherT(userService.getUser(1)) // EitherT[IO, String Option[User]]
+        nameOption <- EitherT(userService.getUser(1)) // EitherT[IO, String, Option[User]]
         name <- nameOption.liftTo[EitherT[IO, String, *]]("Unknown User") // EitherT[IO, String, User]
         _ <- EitherT(IO(println(s"Name: $name").asRight[String])) // EitherT[IO, String, Unit]
         address <- EitherT.fromOptionF(addressService.getAddress(name), "No Address") // EitherT[IO, String, String]
